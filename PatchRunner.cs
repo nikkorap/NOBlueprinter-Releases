@@ -352,6 +352,27 @@ namespace Blueprinter
                 if (memberPath.StartsWith("sharedMaterials[", StringComparison.Ordinal) || memberPath.StartsWith("materials[", StringComparison.Ordinal))
                     return ApplyRendererMaterialArrayPatch(bundleTargetObject, gameAsset, memberPath, patchId, locationId);
 
+                // SPECIAL CASE #3: Material texture property
+                if (bundleTargetObject is Material material && memberPath.StartsWith("materialTexture::", StringComparison.Ordinal))
+                {
+                    if (gameAsset is not Texture texture)
+                    {
+                        Plugin.Log.LogWarning($"[PatchRunner] Asset {gameAsset?.GetType().FullName} is not Texture patch {patchId} location {locationId}");
+                        return false;
+                    }
+
+                    string propertyName = memberPath.Substring("materialTexture::".Length);
+
+                    if (!material.HasProperty(propertyName))
+                    {
+                        Plugin.Log.LogWarning($"[PatchRunner] Material {material.name} missing texture property {propertyName} patch {patchId} location {locationId}");
+                        return false;
+                    }
+
+                    material.SetTexture(propertyName, texture);
+                    return true;
+                }
+
                 // Default behaviour: assign the resolved GameAsset directly.
                 if (!MemberPathSetter.TryApply(bundleTargetObject, memberPath, gameAsset))
                 {
