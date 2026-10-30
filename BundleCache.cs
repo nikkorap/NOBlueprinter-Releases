@@ -17,6 +17,8 @@ internal static class BundleCache
     private const string CacheFormat = "BP-Cache-v1";
     private const string BundleLabel = "bundle:";
     private const long FreeSpaceReserve = 256L * 1024 * 1024;
+    private const float MinRecompressTimeoutSeconds = 180f;
+    private const double RecompressSecondsPerGiB = 300.0;
     private static readonly TimeSpan MaxIdle = TimeSpan.FromDays(7);
     private static readonly Dictionary<string, string> PreparedPaths = new(StringComparer.Ordinal);
     private static ConfigEntry<bool> _enabled;
@@ -161,9 +163,10 @@ internal static class BundleCache
             yield break;
         
         AssetBundleRecompressOperation op = null;
+        long inputLength = 0;
         try
         {
-            var inputLength = new FileInfo(prepare.InputPath).Length;
+            inputLength = new FileInfo(prepare.InputPath).Length;
             if (!CheckCapacity(inputLength))
                 DisableOnStorageFailure("Insufficient disk space to prepare the converted bundle");
             else
@@ -185,7 +188,32 @@ internal static class BundleCache
         if (op == null)
             yield break;
         
-        yield return op;
+        // Handle failsafe in case LZ4 preparation gets indefinitely stuck (unity decompress/recompress never returns
+        // errors if the bundle is corrupt, so it leaves game forever stuck in "preparing LZ4 cache")
+        // This times it out if it's still working after timeoutSeconds on the same cache and actually show
+        // the error message + try to fall back using regular/non-cache for it
+        // timeoutSeconds is set to 180s as minimum, and has additional scaling of 300s per GiB bundle size, whichever
+        // is larger, to account for a possible super large multi GiB bundle taking longer
+        var recompressStarted = Time.realtimeSinceStartup;
+        var timeoutSeconds = Math.Max(MinRecompressTimeoutSeconds,
+            RecompressSecondsPerGiB * inputLength / (1024d * 1024d * 1024d));
+        while (!op.isDone)
+        {
+            if (Time.realtimeSinceStartup - recompressStarted >= timeoutSeconds)
+            {
+                Plugin.Log.LogError($"[BundleCache] Recompression timed out after {timeoutSeconds:0}s for "
+                                    + $"{source}. Trying the original asset bundle instead, check Player.log if it "
+                                    + "still can't load.");
+                Warning = "One bundle's cache conversion timed out, loading its original asset bundles. Check "
+                          + " Player.log for details.";
+                // Can't cancel this, unity doesn't have a cancellation API for this native operation, so no deleting
+                // input or .writing output (next startup removes abandoned .writing temp files)
+                yield break;
+            }
+            
+            yield return null;
+        }
+        
         try
         {
             if (!op.success || !File.Exists(prepare.TempOutputPath) || new FileInfo(prepare.TempOutputPath).Length == 0)
