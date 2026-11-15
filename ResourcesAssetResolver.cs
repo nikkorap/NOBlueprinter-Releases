@@ -116,6 +116,19 @@ namespace Blueprinter
                     return cachedAsset;
 
                 Object asset = type != null ? bundle.AssetBundle.LoadAsset(key, type) : bundle.AssetBundle.LoadAsset(key);
+                
+                if (key.Contains(".fbx"))
+                {
+                    var objects = type != null ? bundle.AssetBundle.LoadAssetWithSubAssets(key, type) : bundle.AssetBundle.LoadAssetWithSubAssets(key);
+                    foreach (var obj in objects)
+                    {
+                        if (obj.name == targetRef.name)
+                        {
+                            asset = obj;
+                        }
+                    }
+                }
+                
                 if (asset == null)
                     Log?.LogWarning($"[ResourcesAssetResolver] ({bundle.bundleName}) Could not load {key} type {targetRef.type}");
                 else
