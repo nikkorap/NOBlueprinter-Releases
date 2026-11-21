@@ -270,8 +270,12 @@ namespace Blueprinter
                     if (!noYield && !fastLoad)
                         yield return patchEnum.Current;
                 }
-
-                if (runner.DeferredPatches.Count > 0 && !skipAdditionalAssets)
+                
+                if (runner.DeferredPatches.Count > 0 && !skipAdditionalAssets && GameManager.IsHeadless)
+                    Log.LogWarning("Skipping additional asset loading, not yet supported on dedicated servers. " +
+                                   $"({runner.DeferredPatches.Count} deferred patch groups)");
+                
+                if (runner.DeferredPatches.Count > 0 && !skipAdditionalAssets && !GameManager.IsHeadless)
                 {
                     Log.LogInfo("[Plugin] Loading additional assets");
                     if (loadingScreen != null)
