@@ -32,11 +32,11 @@ namespace Blueprinter
         {
             Instance = this;
             GameVersion = Application.version;
-            fastLoad = Config.Bind("General", "FastLoad", false).Value;
+            fastLoad = Config.Bind("General", "FastLoad", true).Value;
             skipAdditionalAssets = Config.Bind("General", "SkipAdditionalAssets", false).Value;
             LoadingScreenImageLimit = Config.Bind("Loading Screens", "Max Images Per Mod", 5,
                 "Maximum number of loading screen images each mod can add. Set 0 to disable mod-added loading screens.").Value;
-            HintLimit = Config.Bind("Hints", "Max Hints Per Mod", 10,
+            HintLimit = Config.Bind("Hints", "Max Hints Per Mod", 20,
                 "Maximum number of hints each mod can add. Set 0 to disable mod-added hints.").Value;
             bundleCacheEnabled = Config.Bind("Bundle Cache", "Enabled", true,
                 "Cache loaded asset bundles into LZ4 format on disk for faster subsequent startups " +
