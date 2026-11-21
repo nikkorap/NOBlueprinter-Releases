@@ -96,6 +96,7 @@ namespace Blueprinter
                 return null;
 
             string key = targetRef.locator ?? targetRef.name;
+            string cacheStringKey = targetRef.locator + targetRef.name;
             if (string.IsNullOrEmpty(key))
             {
                 Log?.LogWarning($"[ResourcesAssetResolver] ({bundle.bundleName}) Missing locator");
@@ -111,11 +112,24 @@ namespace Blueprinter
 
             try
             {
-                (AssetBundle AssetBundle, string key, Type type) cacheKey = (bundle.AssetBundle, key, type);
+                (AssetBundle AssetBundle, string key, Type type) cacheKey = (bundle.AssetBundle, cacheStringKey, type);
                 if (BundleAssetCache.TryGetValue(cacheKey, out var cachedAsset))
                     return cachedAsset;
 
                 Object asset = type != null ? bundle.AssetBundle.LoadAsset(key, type) : bundle.AssetBundle.LoadAsset(key);
+                
+                if (key.Contains(".fbx"))
+                {
+                    var objects = type != null ? bundle.AssetBundle.LoadAssetWithSubAssets(key, type) : bundle.AssetBundle.LoadAssetWithSubAssets(key);
+                    foreach (var obj in objects)
+                    {
+                        if (obj.name == targetRef.name)
+                        {
+                            asset = obj;
+                        }
+                    }
+                }
+                
                 if (asset == null)
                     Log?.LogWarning($"[ResourcesAssetResolver] ({bundle.bundleName}) Could not load {key} type {targetRef.type}");
                 else
