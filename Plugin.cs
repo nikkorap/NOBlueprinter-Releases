@@ -218,7 +218,26 @@ namespace Blueprinter
 
                 BundleCache.RemoveRedundantCache(bundleRegistry.Bundles);
 
-                BundlesSignature = bundleRegistry.Bundles.Count == 0 ? "NOBUNDLES" : string.Join("_", bundleRegistry.Bundles.Select(bundle => $"--{bundle.bundleName}-v{bundle.Manifest.modVersion}"));
+                if (bundleRegistry.Bundles.Count == 0)
+                {
+                    BundlesSignature = "NOBUNDLES";
+                }
+                else
+                {
+                    var signatures = new List<string>();
+
+                    foreach (var bundle in bundleRegistry.Bundles)
+                    {
+                        var version = bundle.Manifest.modVersion;
+
+                        if (Version.TryParse(version, out var v) && v.Revision >= 0)
+                            version = $"{v.Major}.{v.Minor}.{v.Build}";
+
+                        signatures.Add($"--{bundle.bundleName}-v{version}");
+                    }
+
+                    BundlesSignature = string.Join("_", signatures);
+                }
 
                 if (loadingScreen != null)
                 {
